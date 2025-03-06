@@ -1,8 +1,9 @@
 import pygame
 import os
 
-class Player:
+class Player(pygame.sprite.Sprite):  # Inherit from pygame.sprite.Sprite
     def __init__(self):
+        super().__init__()  # Initialize the sprite
         self.x = 300
         self.y = 300
         self.speed = 4
@@ -24,6 +25,8 @@ class Player:
         self.skill2_animation = self.load_sprite_sheet("assets/Skill2.png", 100, 100, 6)
 
         self.current_animation = self.idle_animation
+        self.image = self.current_animation[0]  # Set an initial image for the sprite
+        self.rect = self.image.get_rect(topleft=(self.x, self.y))  # Create a rect for collision and positioning
 
     def load_sprite_sheet(self, sheet_path, frame_width, frame_height, num_frames):
         """Load a sprite sheet, split into frames."""
@@ -58,6 +61,9 @@ class Player:
         else:
             self.current_animation = self.idle_animation
 
+        # Update rect position for collision detection
+        self.rect.topleft = (self.x, self.y)
+
     def update_animation(self):
         """Update animation and attack timers."""
         self.frame_counter += 1
@@ -65,9 +71,18 @@ class Player:
             self.current_frame = (self.current_frame + 1) % len(self.current_animation)
             self.frame_counter = 0
 
+        # Update the sprite image
+        self.image = self.current_animation[self.current_frame]
+
     def draw(self, screen):
         """Render character and flip if facing left."""
         frame = self.current_animation[self.current_frame]
         if not self.facing_right:
             frame = pygame.transform.flip(frame, True, False)
         screen.blit(frame, (self.x, self.y))
+
+    def update_projectiles(self, screen_width, screen_height):
+    """Update and remove projectiles that go off-screen."""
+    self.projectiles = [proj for proj in self.projectiles if 0 <= proj["x"] <= screen_width]
+    for proj in self.projectiles:
+        proj["x"] += proj["speed"] if proj["direction"] == "right" else -proj["speed"]
