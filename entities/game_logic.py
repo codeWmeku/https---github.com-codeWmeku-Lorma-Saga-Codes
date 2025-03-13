@@ -1,5 +1,6 @@
-import random
+# game_logic.py
 import pygame
+import random
 from config import GameState, TILE_SIZE, MAP_WIDTH, MAP_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT
 from entities.player import Player
 from entities.enemy import Enemy, GrandMaster
@@ -29,9 +30,9 @@ class GameLogic:
         
         # Create some walls
         for i in range(10):
-            wall = Wall(random.randint(0, MAP_WIDTH - 100),
-                      random.randint(0, MAP_HEIGHT - 100),
-                      TILE_SIZE, TILE_SIZE)
+            wall = Wall(random.randint(0, MAP_WIDTH - 100), 
+                       random.randint(0, MAP_HEIGHT - 100), 
+                       TILE_SIZE, TILE_SIZE)
             self.walls.add(wall)
             self.all_sprites.add(wall)
         
@@ -44,20 +45,20 @@ class GameLogic:
             self.all_sprites.add(enemy)
         
         # Create an NPC
-        npc = NPC(300, 300, "Classmate", ["Hey there! Welcome to Lorma School!",
-                                       "Watch out for the Grandmasters!",
-                                       "Good luck on your journey!"])
+        npc = NPC(300, 300, "Classmate", ["Hey there! Welcome to Lorma School!", 
+                                          "Watch out for the Grandmasters!", 
+                                          "Good luck on your journey!"])
         self.npcs.add(npc)
         self.all_sprites.add(npc)
         
         # Create the final boss
         self.final_boss = GrandMaster(MAP_WIDTH - 200, MAP_HEIGHT - 200,
-                                 "Grandmaster Mary-Ann", 300, 20, 500,
-                                 [
-                                     {"name": "Late Penalty", "damage": 15, "effect": "Speed decreased"},
-                                     {"name": "Dark Magic", "damage": 25, "effect": "Critical hit!"},
-                                     {"name": "Harsh Grading", "damage": 20, "effect": "Attack decreased"}
-                                 ])
+                                     "Grandmaster Mary-Ann", 300, 20, 500,
+                                     [
+                                         {"name": "Late Penalty", "damage": 15, "effect": "Speed decreased"},
+                                         {"name": "Dark Magic", "damage": 25, "effect": "Critical hit!"},
+                                         {"name": "Harsh Grading", "damage": 20, "effect": "Attack decreased"}
+                                     ])
         self.enemies.add(self.final_boss)
         self.all_sprites.add(self.final_boss)
         
@@ -69,7 +70,7 @@ class GameLogic:
             enemy = enemy_hits[0]
             self.battle_system.start_battle(self.player, enemy)
             self.state = GameState.BATTLE
-            
+    
     def check_npc_interaction(self):
         for npc in self.npcs:
             dx = npc.rect.x - self.player.rect.x
@@ -80,36 +81,15 @@ class GameLogic:
                 self.dialogue_system.start_dialogue(npc)
                 self.state = GameState.DIALOGUE
                 break
-                
+    
     def update_world(self, dx, dy):
         self.player.move(dx, dy, self.walls)
         
-        # Check for attack input in world mode
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_SPACE]:
-            attack_rect = self.player.attack_action()
-            # Check for direct attack hits in world mode
-            for enemy in self.enemies:
-                if attack_rect.colliderect(enemy.rect):
-                    damage = self.player.attack
-                    is_defeated = enemy.take_damage(damage)
-                    if is_defeated:
-                        level_up_msg = self.player.gain_exp(enemy.exp_reward)
-                        self.enemies.remove(enemy)
-                        self.all_sprites.remove(enemy)
-                        # Check win condition
-                        if enemy == self.final_boss:
-                            self.state = GameState.VICTORY
-        
-        # Update all enemies
         for enemy in self.enemies:
             enemy.update(self.player)
-            
-        # Update player animations
-        self.player.update(self.enemies)
         
         self.check_enemy_collision()
-        
+    
     def handle_battle_input(self, action):
         result = None
         
@@ -128,14 +108,11 @@ class GameLogic:
             self.enemies.remove(self.battle_system.enemy)
             self.all_sprites.remove(self.battle_system.enemy)
             self.state = GameState.WORLD
-            # Check win condition
-            if self.battle_system.enemy == self.final_boss:
-                self.state = GameState.VICTORY
         elif result == "game_over":
             self.state = GameState.GAME_OVER
         
         return result
-        
+    
     def handle_dialogue_input(self):
         next_dialogue = self.dialogue_system.next_dialogue()
         if not next_dialogue:

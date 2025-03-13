@@ -1,3 +1,4 @@
+# game_controller.py
 import pygame
 from config import BLACK, GameState, SCREEN_WIDTH, SCREEN_HEIGHT, MAP_WIDTH, MAP_HEIGHT, WHITE, RED, GREEN
 from interface_adapters.views.renderer import Camera, Renderer
