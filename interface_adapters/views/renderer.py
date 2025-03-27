@@ -8,27 +8,36 @@ class Camera:
         self.height = height
         self.screen_width = screen_width
         self.screen_height = screen_height
+        self.x_offset = 0
+        self.y_offset = 0
         
     def apply(self, entity):
-        return entity.rect.move(self.camera.topleft)
+        """Return the screen position for an entity."""
+        return entity.rect.move(self.x_offset, self.y_offset)
         
     def apply_rect(self, rect):
-        return rect.move(self.camera.topleft)
+        """Return the screen position for a rect."""
+        return rect.move(self.x_offset, self.y_offset)
         
     def apply_point(self, x, y):
-        return x + self.camera.x, y + self.camera.y
+        """Return the screen position for a point."""
+        return (x + self.x_offset, y + self.y_offset)
         
     def update(self, target):
-        x = -target.rect.x + self.screen_width // 2
-        y = -target.rect.y + self.screen_height // 2
+        """Update camera position to follow target."""
+        # Calculate where camera should be
+        x = -target.rect.centerx + self.screen_width // 2
+        y = -target.rect.centery + self.screen_height // 2
         
-        # Limit scrolling to map size
-        x = min(0, x)  # Left
-        y = min(0, y)  # Top
-        x = max(-(self.width - self.screen_width), x)  # Right
-        y = max(-(self.height - self.screen_height), y)  # Bottom
+        # Limit scrolling to map edges
+        x = min(0, x)  # Left edge
+        y = min(0, y)  # Top edge
+        x = max(-(self.width - self.screen_width), x)  # Right edge
+        y = max(-(self.height - self.screen_height), y)  # Bottom edge
         
-        self.camera = pygame.Rect(x, y, self.width, self.height)
+        # Update offsets
+        self.x_offset = int(x)
+        self.y_offset = int(y)
 
 class Renderer:
     def __init__(self, screen):
@@ -39,22 +48,30 @@ class Renderer:
         self.screen.fill(WHITE)
         
     def draw_sprite(self, sprite, camera=None):
-        if hasattr(sprite, 'draw'):
-            # Use custom draw method if available
-            sprite.draw(self.screen, camera)
+        """Draw a sprite with camera offset if provided."""
+        if not hasattr(sprite, 'image') or not hasattr(sprite, 'rect'):
+            return
+            
+        if camera:
+            # Get screen position
+            screen_rect = camera.apply(sprite)
+            self.screen.blit(sprite.image, screen_rect)
         else:
-            # Default sprite drawing
-            if camera:
-                self.screen.blit(sprite.image, camera.apply(sprite))
-            else:
-                self.screen.blit(sprite.image, sprite.rect)
-                
+            self.screen.blit(sprite.image, sprite.rect)
+    
     def draw_sprite_group(self, sprite_group, camera=None):
+        """Draw a group of sprites with camera offset if provided."""
         for sprite in sprite_group:
             self.draw_sprite(sprite, camera)
-            # Draw health bars above enemies
+            
+            # Draw health bars for entities that have them
             if hasattr(sprite, 'draw_health_bar'):
-                sprite.draw_health_bar(self.screen, camera)
+                if camera:
+                    # Get screen position for health bar
+                    screen_rect = camera.apply(sprite)
+                    sprite.draw_health_bar(self.screen, screen_rect.x, screen_rect.y)
+                else:
+                    sprite.draw_health_bar(self.screen, sprite.rect.x, sprite.rect.y)
         
     def draw_text(self, text, x, y, color=BLACK):
         text_surface = self.font.render(text, True, color)

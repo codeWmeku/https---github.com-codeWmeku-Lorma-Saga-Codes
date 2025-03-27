@@ -1,3 +1,4 @@
+# pygame_manager.py
 import pygame
 from config import SCREEN_WIDTH, SCREEN_HEIGHT, FPS
 from use_cases.battle_system import BattleSystem
