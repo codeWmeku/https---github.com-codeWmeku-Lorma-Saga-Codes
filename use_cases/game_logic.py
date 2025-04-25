@@ -38,6 +38,11 @@ class GameLogic:
         
         # Initialize closest NPC
         self.closest_npc = None
+        
+        # Initialize player ID selection
+        self.selected_player_id = 1
+        self.total_players = 5
+        self.player_selection_active = False
     
     def setup_new_game(self):
         """Initialize a new game."""
@@ -49,6 +54,10 @@ class GameLogic:
         
         # Generate map
         self.tiles, self.walls = self.map_manager.generate_map()
+        
+        # Set player ID based on selection
+        self.player.player_id = self.selected_player_id
+        print(f"Starting game with Player {self.selected_player_id}")
         
         # Add player to sprite group
         self.all_sprites.add(self.player)
@@ -185,10 +194,24 @@ class GameLogic:
     def handle_key_event(self, event):
         """Handle specific key events."""
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_3:
-                # Use skill 3 (health regeneration)
-                if self.player.use_skill3():
-                    print(f"Used health regeneration. Current health: {self.player.health}")
+            if self.state == GameState.MAIN_MENU:
+                if event.key == pygame.K_UP:
+                    # Toggle player selection mode
+                    self.player_selection_active = not self.player_selection_active
+                elif event.key == pygame.K_LEFT and self.player_selection_active:
+                    # Decrease player ID (with wraparound)
+                    self.selected_player_id = ((self.selected_player_id - 2) % self.total_players) + 1
+                elif event.key == pygame.K_RIGHT and self.player_selection_active:
+                    # Increase player ID (with wraparound)
+                    self.selected_player_id = (self.selected_player_id % self.total_players) + 1
+                elif event.key == pygame.K_RETURN:
+                    # Start the game with selected player ID
+                    self.setup_new_game()
+            elif self.state == GameState.WORLD:
+                if event.key == pygame.K_3:
+                    # Use skill 3 (health regeneration)
+                    if self.player.use_skill3():
+                        print(f"Used health regeneration. Current health: {self.player.health}")
     
     def check_enemy_collision(self):
         # Implement your enemy collision detection logic here
@@ -411,23 +434,104 @@ class GameLogic:
         pygame.display.flip()
 
     def draw_main_menu(self, screen):
-        """Draw the main menu screen."""
-        # Fill background
-        screen.fill((0, 0, 0))
+        """Draw the main menu screen with the game map as the background."""
+        if not hasattr(self, 'tiles'):
+            # If tiles haven't been generated yet, create them for the background
+            self.map_manager.load_tileset()  # Make sure to load the tileset if not already loaded
+            self.tiles, _ = self.map_manager.generate_map()
+
+        # Render the map tiles to the screen (without camera offset for the main menu)
+        for tile in self.tiles:
+            screen.blit(tile.image, (tile.rect.x, tile.rect.y))
+
+        # Create fade effect for better text contrast
+        fade_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        fade_surface.fill((0, 0, 0, 180))  # Semi-transparent overlay
+        screen.blit(fade_surface, (0, 0))
+
+        # Create font for title and draw with some scale/animation
+        font = pygame.font.Font(None, 96)  # Larger font for title
+        title_text = font.render("Lorma Saga", True, (255, 255, 255))  # White color for the title
+        title_rect = title_text.get_rect(center=(screen.get_width() // 2, screen.get_height() // 4))
+
+        # Add animation effect (title appearing from a smaller size to normal)
+        scale_factor = 1.2  # Initial scale size
+        scaled_title = pygame.transform.scale(title_text, (int(title_rect.width * scale_factor), int(title_rect.height * scale_factor)))
+        title_rect = scaled_title.get_rect(center=(screen.get_width() // 2, screen.get_height() // 4))
         
-        # Create font
-        font = pygame.font.Font(None, 74)
+        screen.blit(scaled_title, title_rect)
+
+        # Draw player selection interface
+        self.draw_player_selection(screen)
         
-        # Draw title
-        title = font.render("Lorma Saga", True, (255, 255, 255))
-        title_rect = title.get_rect(center=(screen.get_width() // 2, screen.get_height() // 3))
-        screen.blit(title, title_rect)
+        # Start prompt with improved font and hover effect
+        font = pygame.font.Font(None, 48)
+        prompt_text = font.render("Press ENTER to Start", True, (255, 255, 255))
+        prompt_rect = prompt_text.get_rect(center=(screen.get_width() // 2, screen.get_height() * 3 // 4))
+
+        # Hover effect (change color when mouse is over)
+        mouse_x, mouse_y = pygame.mouse.get_pos()
+        if prompt_rect.collidepoint(mouse_x, mouse_y):
+            prompt_text = font.render("Press ENTER to Start", True, (0, 255, 0))  # Change color to green
         
-        # Draw start prompt
+        screen.blit(prompt_text, prompt_rect)
+        
+        # Instructions for player selection
+        font = pygame.font.Font(None, 28)
+        instructions_text = font.render("Press UP to toggle player selection, LEFT/RIGHT to change player", True, (200, 200, 200))
+        instructions_rect = instructions_text.get_rect(center=(screen.get_width() // 2, screen.get_height() * 7 // 8))
+        screen.blit(instructions_text, instructions_rect)
+
+    def draw_player_selection(self, screen):
+        """Draw the player selection interface on the main menu."""
+        # Create player selection box
+        selection_box_width = 400
+        selection_box_height = 120
+        selection_box_x = (screen.get_width() - selection_box_width) // 2
+        selection_box_y = screen.get_height() // 2 - selection_box_height // 2
+        
+        # Draw selection box background with slight transparency
+        selection_surface = pygame.Surface((selection_box_width, selection_box_height), pygame.SRCALPHA)
+        if self.player_selection_active:
+            selection_surface.fill((0, 100, 200, 180))  # Blue when active
+        else:
+            selection_surface.fill((100, 100, 100, 150))  # Gray when inactive
+        
+        # Draw selection box border
+        pygame.draw.rect(selection_surface, (255, 255, 255), (0, 0, selection_box_width, selection_box_height), 3)
+        screen.blit(selection_surface, (selection_box_x, selection_box_y))
+        
+        # Draw "Player ID" title
         font = pygame.font.Font(None, 36)
-        prompt = font.render("Press ENTER to Start", True, (255, 255, 255))
-        prompt_rect = prompt.get_rect(center=(screen.get_width() // 2, screen.get_height() * 2 // 3))
-        screen.blit(prompt, prompt_rect)
+        player_id_text = font.render("Select Player ID:", True, (255, 255, 255))
+        player_id_rect = player_id_text.get_rect(center=(selection_box_x + selection_box_width // 2, selection_box_y + 30))
+        screen.blit(player_id_text, player_id_rect)
+        
+        # Draw player selection buttons
+        button_width = 40
+        button_spacing = 20
+        total_buttons_width = (button_width * self.total_players) + (button_spacing * (self.total_players - 1))
+        start_x = selection_box_x + (selection_box_width - total_buttons_width) // 2
+        
+        for i in range(1, self.total_players + 1):
+            button_x = start_x + (i - 1) * (button_width + button_spacing)
+            button_y = selection_box_y + 70
+            
+            # Draw button background
+            button_color = (0, 200, 0) if i == self.selected_player_id else (150, 150, 150)
+            if self.player_selection_active and i == self.selected_player_id:
+                # Add a glow effect when active and selected
+                glow_surface = pygame.Surface((button_width + 8, button_width + 8), pygame.SRCALPHA)
+                pygame.draw.circle(glow_surface, (255, 255, 0, 100), (button_width // 2 + 4, button_width // 2 + 4), button_width // 2 + 4)
+                screen.blit(glow_surface, (button_x - 4, button_y - 4))
+            
+            pygame.draw.circle(screen, button_color, (button_x + button_width // 2, button_y + button_width // 2), button_width // 2)
+            
+            # Draw player number
+            number_font = pygame.font.Font(None, 32)
+            number_text = number_font.render(str(i), True, (255, 255, 255))
+            number_rect = number_text.get_rect(center=(button_x + button_width // 2, button_y + button_width // 2))
+            screen.blit(number_text, number_rect)
     
     def draw_game_over(self, screen):
         """Draw the game over screen."""
@@ -455,4 +559,40 @@ class GameLogic:
     
     def handle_mouse_click(self, pos):
         """Handle mouse clicks in the game."""
+        # If in main menu, check for player selection buttons
+        if self.state == GameState.MAIN_MENU:
+            # Calculate player selection button positions
+            selection_box_width = 400
+            selection_box_height = 120
+            selection_box_x = (SCREEN_WIDTH - selection_box_width) // 2
+            selection_box_y = SCREEN_HEIGHT // 2 - selection_box_height // 2
+            
+            button_width = 40
+            button_spacing = 20
+            total_buttons_width = (button_width * self.total_players) + (button_spacing * (self.total_players - 1))
+            start_x = selection_box_x + (selection_box_width - total_buttons_width) // 2
+            
+            # Check if any player button was clicked
+            for i in range(1, self.total_players + 1):
+                button_x = start_x + (i - 1) * (button_width + button_spacing)
+                button_y = selection_box_y + 70
+                
+                # Calculate button center and distance from click
+                button_center_x = button_x + button_width // 2
+                button_center_y = button_y + button_width // 2
+                
+                # Check if click is within button circle
+                distance = ((pos[0] - button_center_x) ** 2 + (pos[1] - button_center_y) ** 2) ** 0.5
+                if distance <= button_width // 2:
+                    # Button clicked, activate selection and set player ID
+                    self.player_selection_active = True
+                    self.selected_player_id = i
+                    return True
+            
+            # Check if selection box area was clicked to toggle player selection
+            if selection_box_x <= pos[0] <= selection_box_x + selection_box_width and \
+               selection_box_y <= pos[1] <= selection_box_y + selection_box_height:
+                self.player_selection_active = not self.player_selection_active
+                return True
+                
         return False
