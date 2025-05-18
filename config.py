@@ -26,3 +26,4 @@ class GameState(Enum):
     DIALOGUE = 3
     GAME_OVER = 4
     VICTORY = 5
+    PAUSED = 6

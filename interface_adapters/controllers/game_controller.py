@@ -14,13 +14,18 @@ class GameController:
         # UI elements
         self.start_button = Button(SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2,
                               200, 50, "Start Game", WHITE, GREEN)
+        self.pause_button = Button(SCREEN_WIDTH - 120, 20, 100, 40, "Pause", WHITE, GREEN)
+        self.skip_button = Button(SCREEN_WIDTH - 120, 70, 100, 40, "Skip", WHITE, GREEN)
+        self.pause_menu = None
         
         # Add gameplay instructions
         self.instructions = [
             "Move: WASD or Arrow Keys",
             "Attack: Space or Left Mouse Button",
             "Interact with NPCs: E Key",
-            "In Battle: 1 for Basic Attack, 2 for Skill"
+            "In Battle: 1 for Basic Attack, 2 for Skill",
+            "Pause: P Key or Pause Button",
+            "Skip: S Key or Skip Button"
         ]
         
     def update(self):
@@ -31,6 +36,27 @@ class GameController:
             self.start_button.update()
             if self.start_button.is_clicked():
                 self.game_logic.setup_new_game()
+        
+        if self.game_logic.state == GameState.WORLD:
+            self.pause_button.update()
+            self.skip_button.update()
+            
+            if self.pause_button.is_clicked() or pygame.key.get_pressed()[pygame.K_p]:
+                self.game_logic.state = GameState.PAUSED
+            
+            if self.skip_button.is_clicked() or pygame.key.get_pressed()[pygame.K_s]:
+                self.game_logic.state = GameState.SKIPPED
+                
+        if self.game_logic.state == GameState.PAUSED:
+            if self.pause_menu is None:
+                self.pause_menu = PauseMenu(SCREEN_WIDTH, SCREEN_HEIGHT)
+            
+            action = self.pause_menu.handle_events(pygame.event.get())
+            if action == "resume":
+                self.game_logic.state = GameState.WORLD
+            elif action == "main_menu":
+                self.game_logic.state = GameState.MAIN_MENU
+                self.game_logic.reset_game()
                 
     def render(self):
         self.renderer.clear_screen()
@@ -48,7 +74,22 @@ class GameController:
             # Draw all sprites with camera offset
             self.renderer.draw_sprite_group(self.game_logic.all_sprites, self.camera)
             
+            # Draw pause and skip buttons
+            self.pause_button.draw(self.screen)
+            self.skip_button.draw(self.screen)
+            
             # Draw player stats
+            player = self.game_logic.player
+            self.renderer.draw_health_bar(10, 10, 200, 20, player.hp, player.max_hp, RED)
+            self.renderer.draw_text(f"HP: {player.hp}/{player.max_hp}", 220, 10)
+            self.renderer.draw_text(f"Level: {player.level}", 10, 40)
+            self.renderer.draw_text(f"EXP: {player.exp}/{player.next_level_exp}", 10, 70)
+            
+            # Display controls
+            self.renderer.draw_text("SPACE to Attack", 10, SCREEN_HEIGHT - 30)
+            
+        elif self.game_logic.state == GameState.PAUSED:
+            self.pause_menu.draw(self.screen)
             player = self.game_logic.player
             self.renderer.draw_health_bar(10, 10, 200, 20, player.hp, player.max_hp, RED)
             self.renderer.draw_text(f"HP: {player.hp}/{player.max_hp}", 220, 10)

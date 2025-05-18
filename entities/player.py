@@ -42,11 +42,20 @@ class Player(pygame.sprite.Sprite):
         self.is_attacking = False
         self.exp = 0
         self.level = 1
+        self.exp_to_next_level = 100  # Always 100 XP per level
+        
+        # Additional character attributes
+        self.defense = 5           # Reduces damage taken
+        self.critical_chance = 10  # Percentage chance for critical hits (1.5x damage)
+        self.speed = 3             # Affects turn order and dodge chance
+        
+        # Player ID selection
+        self.player_id = 1  # Default player ID
         
         # Skill 3 - Health Regeneration
         self.skill3_cooldown = 0
-        self.skill3_cooldown_max = 300  # 5 seconds at 60 FPS
-        self.skill3_heal_amount = 25
+        self.skill3_cooldown_max = 180  # 3 seconds at 60 FPS
+        self.skill3_heal_amount = 30  # Increased healing amount
         
     def load_sprites(self):
         """Load and scale sprite animations."""
@@ -123,14 +132,97 @@ class Player(pygame.sprite.Sprite):
     def use_skill3(self):
         """Regenerate health when skill 3 is used."""
         if self.skill3_cooldown <= 0:
-            # Heal the player
-            self.health = min(self.max_health, self.health + self.skill3_heal_amount)
+            # Calculate healing amount
+            heal_amount = self.skill3_heal_amount
+            
+            # Apply healing (ensure it doesn't exceed max health)
+            old_health = self.health
+            self.health = min(self.max_health, self.health + heal_amount)
+            actual_heal = self.health - old_health
             
             # Set cooldown
             self.skill3_cooldown = self.skill3_cooldown_max
             
+            print(f"Healed for {actual_heal} HP. Health: {self.health}/{self.max_health}")
             return True
+        
+        print(f"Healing on cooldown: {self.skill3_cooldown//60 + 1}s remaining")
         return False
+    
+    def gain_exp(self, amount):
+        """Add experience points and level up if necessary.
+        
+        Args:
+            amount (int): Amount of XP to add
+        
+        Returns:
+            bool: True if leveled up, False otherwise
+        """
+        # Make sure exp_to_next_level exists
+        if not hasattr(self, 'exp_to_next_level'):
+            self.exp_to_next_level = 100
+            
+        self.exp += amount
+        leveled = False
+        
+        # Check if we've accumulated enough XP to level up
+        if self.exp >= self.exp_to_next_level:
+            # Store excess XP beyond what was needed for this level
+            excess_exp = self.exp - self.exp_to_next_level
+            
+            # Level up and keep excess XP for progress towards next level
+            leveled = True
+            self.level_up()
+            self.exp = excess_exp
+            
+        return leveled
+    
+    def set_player_id(self, player_id):
+        """Set player ID.
+        
+        Args:
+            player_id (int): The selected player ID (1-5)
+        """
+        self.player_id = player_id
+        
+        # Reset stats for new player
+        self.health = self.max_health
+        self.exp = 0
+        self.level = 1
+        self.exp_to_next_level = 100
+        
+        # Print selected player info
+        print(f"Selected Player {player_id}")
+        
+    def level_up(self):
+        """Increase player level and scale up stats.
+        
+        Returns:
+            bool: True if successful
+        """
+        self.level += 1
+        
+        # Increase max health by 20 per level
+        self.max_health += 20
+        self.health = self.max_health  # Fully heal on level up
+        
+        # Scale attack power with level (10% increase per level)
+        self.attack_power = round(self.attack_power * 1.1)
+        
+        # Scale healing with level (10% increase per level)
+        self.skill3_heal_amount = round(self.skill3_heal_amount * 1.1)
+        
+        # Increase XP required for next level (30% more per level)
+        self.exp_to_next_level = round(100 * (1.3 ** (self.level - 1)))
+        
+        level_up_message = f"Level up! Player {self.player_id} is now level {self.level}!"
+        stats_message = f"Attack: {self.attack_power}, Defense: {self.defense}, Health: {self.health}/{self.max_health}"
+        
+        print(level_up_message)
+        print(stats_message)
+        print(f"XP to next level: {self.exp_to_next_level}")
+        
+        return True, level_up_message, stats_message
     
     def update(self):
         """Update player state, including skill cooldowns."""
